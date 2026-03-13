@@ -1,3 +1,9 @@
+[![add-on registry](https://img.shields.io/badge/DDEV-Add--on_Registry-blue)](https://addons.ddev.com)
+[![tests](https://github.com/credevator/ddev-litellm/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/credevator/ddev-litellm/actions/workflows/tests.yml?query=branch%3Amain)
+[![last commit](https://img.shields.io/github/last-commit/credevator/ddev-litellm)](https://github.com/credevator/ddev-litellm/commits)
+[![release](https://img.shields.io/github/v/release/credevator/ddev-litellm)](https://github.com/credevator/ddev-litellm/releases/latest)
+
+
 # ddev-litellm
 
 A [DDEV](https://ddev.com) add-on that runs a [LiteLLM](https://www.litellm.ai/) proxy as a DDEV service, enabling local AI model testing with Drupal's [`ai_provider_litellm`](https://www.drupal.org/project/ai_provider_litellm) module.
