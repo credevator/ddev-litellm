@@ -8,6 +8,7 @@ services:
     labels:
       com.ddev.site-name: ${DDEV_SITENAME}
     environment:
+      - VIRTUAL_HOST=$DDEV_HOSTNAME
       - HTTP_EXPOSE=4000:4000
       - HTTPS_EXPOSE=4001:4000
       - LITELLM_LOG=${LITELLM_LOG:-INFO}
@@ -18,8 +19,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:4000/health/liveliness || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')\" || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 90s
+      retries: 10
+      start_period: 120s

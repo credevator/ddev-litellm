@@ -1,8 +1,16 @@
 #!/usr/bin/env bats
 
-# ddev-litellm add-on tests
-# Run locally: bats ./tests/test.bats
-# Skip release tests: bats ./tests/test.bats --filter-tags '!release'
+# Bats is a testing framework for Bash
+# Documentation https://bats-core.readthedocs.io/en/stable/
+# Bats libraries documentation https://github.com/ztombol/bats-docs
+
+# For local tests, install bats-core, bats-assert, bats-file, bats-support
+# And run this in the add-on root directory:
+#   bats ./tests/test.bats
+# To exclude release tests:
+#   bats ./tests/test.bats --filter-tags '!release'
+# For debugging:
+#   bats ./tests/test.bats --show-output-of-passing-tests --verbose-run --print-output-on-failure
 
 setup() {
   set -eu -o pipefail
@@ -10,20 +18,20 @@ setup() {
   export GITHUB_REPO=credevator/ddev-litellm
 
   TEST_BREW_PREFIX="$(brew --prefix 2>/dev/null || true)"
-  export BATS_LIB_PATH="${BATS_LIB_PATH:-}:${TEST_BREW_PREFIX}/lib:/usr/lib/bats"
+  export BATS_LIB_PATH="${BATS_LIB_PATH}:${TEST_BREW_PREFIX}/lib:/usr/lib/bats"
   bats_load_library bats-assert
   bats_load_library bats-file
   bats_load_library bats-support
 
   export DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." >/dev/null 2>&1 && pwd)"
-  export PROJNAME="test-ddev-litellm"
+  export PROJNAME="test-$(basename "${GITHUB_REPO}")"
   mkdir -p "${HOME}/tmp"
   export TESTDIR="$(mktemp -d "${HOME}/tmp/${PROJNAME}.XXXXXX")"
   export DDEV_NONINTERACTIVE=true
   export DDEV_NO_INSTRUMENTATION=true
   ddev delete -Oy "${PROJNAME}" >/dev/null 2>&1 || true
   cd "${TESTDIR}"
-  run ddev config --project-name="${PROJNAME}"
+  run ddev config --project-name="${PROJNAME}" --project-tld=ddev.site
   assert_success
   run ddev start -y
   assert_success
@@ -35,14 +43,14 @@ health_checks() {
   assert_success
   assert_output "running"
 
-  # Allow time for LiteLLM to fully initialize
+  # Allow time for LiteLLM to fully initialize (~2GB image, slow start)
   sleep 60
 
-  # Verify health endpoint
+  # Verify health endpoint responds
   run ddev exec curl -sf "http://ddev-${PROJNAME}-litellm:4000/health/liveliness"
   assert_success
 
-  # Verify models endpoint returns valid JSON list
+  # Verify models endpoint returns valid JSON
   run ddev exec curl -sf \
     -H "Authorization: Bearer sk-ddev-litellm" \
     "http://ddev-${PROJNAME}-litellm:4000/v1/models"
@@ -56,8 +64,14 @@ health_checks() {
 
 teardown() {
   set -eu -o pipefail
-  ddev delete -Oy "${PROJNAME}" >/dev/null 2>&1 || true
-  [ -n "${TESTDIR:-}" ] && rm -rf "${TESTDIR}"
+  ddev delete -Oy "${PROJNAME}" >/dev/null 2>&1
+  # Persist TESTDIR if running inside GitHub Actions. Useful for uploading test result artifacts
+  # See example at https://github.com/ddev/github-action-add-on-test#preserving-artifacts
+  if [ -n "${GITHUB_ENV:-}" ]; then
+    [ -e "${GITHUB_ENV:-}" ] && echo "TESTDIR=${HOME}/tmp/${PROJNAME}" >> "${GITHUB_ENV}"
+  else
+    [ "${TESTDIR}" != "" ] && rm -rf "${TESTDIR}"
+  fi
 }
 
 @test "install from directory" {
