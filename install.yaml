@@ -1,0 +1,51 @@
+name: ddev-litellm
+ddev_version_constraint: '>= v1.24.10'
+
+project_files:
+  - docker-compose.litellm.yaml
+  - litellm_config.yaml
+  - config.ddev-litellm.yaml
+  - commands/host/litellm
+  - commands/web/litellm-models
+
+post_install_actions:
+  - |
+    #ddev-description:Display post-install instructions
+    echo ""
+    echo "=================================================="
+    echo " ddev-litellm installed!"
+    echo "=================================================="
+    echo " 1. Edit .ddev/litellm_config.yaml to configure models"
+    echo " 2. Run: ddev restart"
+    echo ""
+    echo " Internal URL (Drupal): http://ddev-${DDEV_PROJECT}-litellm:4000"
+    echo " External URL (browser): https://${DDEV_HOSTNAME}:4001"
+    echo ""
+    echo " Commands:"
+    echo "   ddev litellm           # Show service status"
+    echo "   ddev litellm-models    # List available models"
+    echo "   ddev litellm logs      # View service logs"
+    echo ""
+    echo " NOTE: Set the API key in Drupal via Key module (value: sk-ddev-litellm),"
+    echo " then select it in ai_provider_litellm settings."
+
+removal_actions:
+  - |
+    #ddev-description:Remove ddev-generated litellm files
+    for file in \
+      "${DDEV_APPROOT}/.ddev/docker-compose.litellm.yaml" \
+      "${DDEV_APPROOT}/.ddev/config.ddev-litellm.yaml"; do
+      if [ -f "$file" ]; then
+        if grep -q '#ddev-generated' "$file"; then
+          rm -f "$file" && echo "Removed: $file"
+        else
+          echo "Skipping '$file' (no #ddev-generated marker — manually modified)."
+        fi
+      fi
+    done
+  - |
+    #ddev-description:Preserve user-customized litellm_config.yaml
+    if [ -f "${DDEV_APPROOT}/.ddev/litellm_config.yaml" ]; then
+      echo "NOTE: .ddev/litellm_config.yaml preserved (may contain your model customizations)."
+      echo "Delete it manually if no longer needed."
+    fi

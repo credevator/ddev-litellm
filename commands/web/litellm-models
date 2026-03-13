@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+## Description: List models available via the LiteLLM proxy
+## Usage: litellm-models
+## Example: "ddev litellm-models"
+
+set -eu -o pipefail
+
+HOST="http://ddev-${DDEV_SITENAME}-litellm:4000"
+KEY="${LITELLM_MASTER_KEY:-sk-ddev-litellm}"
+
+RESPONSE=$(curl -sf -H "Authorization: Bearer ${KEY}" "${HOST}/v1/models" 2>&1) || {
+  echo "ERROR: Cannot reach LiteLLM at ${HOST}"
+  echo "Check status with: ddev litellm status"
+  echo "View logs with:    ddev litellm logs"
+  exit 1
+}
+
+echo "${RESPONSE}" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+models = data.get('data', [])
+if not models:
+    print('No models available. Check .ddev/litellm_config.yaml and run: ddev restart')
+else:
+    print(f'Available models ({len(models)}):')
+    for m in models:
+        print(f'  - {m[\"id\"]}')
+"

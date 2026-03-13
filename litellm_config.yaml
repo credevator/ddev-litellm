@@ -1,0 +1,38 @@
+# LiteLLM Proxy Configuration for DDEV
+# Edit this file to add/remove model backends.
+# After changes: ddev restart
+#
+# LITELLM_MASTER_KEY defaults to "sk-ddev-litellm"
+# Override in .ddev/config.yaml under web_environment:
+#   web_environment:
+#     - LITELLM_MASTER_KEY=sk-your-custom-key
+
+model_list:
+  # -------------------------------------------------------------------
+  # Ollama — running on your host machine (default port 11434)
+  # Install: https://ollama.ai  |  Pull model: ollama pull llama3.2
+  # -------------------------------------------------------------------
+  - model_name: ollama/llama3.2
+    litellm_params:
+      model: ollama/llama3.2
+      api_base: http://host.docker.internal:11434
+
+  - model_name: ollama/mistral
+    litellm_params:
+      model: ollama/mistral
+      api_base: http://host.docker.internal:11434
+
+  # -------------------------------------------------------------------
+  # vLLM / HuggingFace — OpenAI-compatible endpoint
+  # Set VLLM_API_BASE in .ddev/config.yaml web_environment to override.
+  # Default: http://host.docker.internal:8000 (vLLM default port)
+  # Uncomment and configure as needed.
+  # -------------------------------------------------------------------
+  # - model_name: vllm/mistral-7b
+  #   litellm_params:
+  #     model: openai/mistralai/Mistral-7B-Instruct-v0.1
+  #     api_base: os.environ/VLLM_API_BASE
+  #     api_key: none
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

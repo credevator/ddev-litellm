@@ -1,0 +1,25 @@
+#ddev-generated
+services:
+  litellm:
+    container_name: ddev-${DDEV_SITENAME}-litellm
+    image: ${LITELLM_DOCKER_IMAGE:-ghcr.io/berriai/litellm:main-latest}
+    restart: "no"
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+    environment:
+      - HTTP_EXPOSE=4000:4000
+      - HTTPS_EXPOSE=4001:4000
+      - LITELLM_LOG=${LITELLM_LOG:-INFO}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-ddev-litellm}
+      - VLLM_API_BASE=${VLLM_API_BASE:-http://host.docker.internal:8000}
+    volumes:
+      - "./litellm_config.yaml:/app/config.yaml:ro"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4000/health/liveliness || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s

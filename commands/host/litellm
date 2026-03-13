@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+## Description: Show LiteLLM service status, open browser UI, or view logs
+## Usage: litellm [status|open|logs]
+## Example: "ddev litellm" or "ddev litellm open" or "ddev litellm logs"
+
+set -eu -o pipefail
+
+ACTION="${1:-status}"
+CONTAINER="ddev-${DDEV_SITENAME}-litellm"
+
+case "${ACTION}" in
+  status)
+    if docker inspect "${CONTAINER}" >/dev/null 2>&1; then
+      STATUS=$(docker inspect --format='{{.State.Status}}' "${CONTAINER}")
+      HEALTH=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}}' "${CONTAINER}" 2>/dev/null || echo "n/a")
+      echo "Container:    ${CONTAINER}"
+      echo "Status:       ${STATUS} (health: ${HEALTH})"
+      echo "Internal URL: http://${CONTAINER}:4000"
+      echo "External URL: https://${DDEV_HOSTNAME}:4001"
+      echo ""
+      echo "Run 'ddev litellm logs' to view service logs."
+    else
+      echo "LiteLLM container not found. Run: ddev start"
+      exit 1
+    fi
+    ;;
+
+  open)
+    URL="https://${DDEV_HOSTNAME}:4001"
+    echo "Opening ${URL} ..."
+    open "${URL}" 2>/dev/null || xdg-open "${URL}" 2>/dev/null || echo "Visit: ${URL}"
+    ;;
+
+  logs)
+    docker logs "${CONTAINER}" "${@:2}"
+    ;;
+
+  *)
+    echo "Usage: ddev litellm [status|open|logs]"
+    exit 1
+    ;;
+esac
