@@ -8,13 +8,24 @@
 
 A [DDEV](https://ddev.com) add-on that runs a [LiteLLM](https://www.litellm.ai/) proxy as a DDEV service, enabling local AI model testing with Drupal's [`ai_provider_litellm`](https://www.drupal.org/project/ai_provider_litellm) module.
 
+## Services
+
+The add-on starts two containers via a single `docker-compose.litellm.yaml`:
+
+| Container | Purpose |
+|---|---|
+| `ddev-<project>-litellm` | LiteLLM proxy (port 4000) |
+| `ddev-<project>-litellm-postgres` | PostgreSQL database required by LiteLLM for key management |
+
+LiteLLM uses [Prisma](https://www.prisma.io/) as its ORM and requires PostgreSQL — key management endpoints (`/key/info`, `/key/generate`) will not work without it.
+
 ## Features
 
-- LiteLLM proxy service accessible inside DDEV at `http://ddev-<project>-litellm:4000`
+- LiteLLM proxy accessible inside DDEV at `http://ddev-<project>-litellm:4000`
+- PostgreSQL sidecar started and health-checked automatically before LiteLLM
 - Pre-configured to connect to [Ollama](https://ollama.ai) running on the host machine
 - Optional vLLM / HuggingFace endpoint support
-- Auto-configures the Drupal `ai_provider_litellm.settings.host` on each `ddev start`
-- Custom `ddev litellm` and `ddev litellm-models` commands
+- On each `ddev start`: waits for LiteLLM readiness, creates a Drupal virtual key in the DB, and auto-sets `ai_provider_litellm.settings.host` via drush
 
 ## Requirements
 
@@ -68,34 +79,44 @@ Edit `.ddev/litellm_config.yaml` to add or modify model backends, then run `ddev
 
 ### Configuring Drupal
 
-The add-on automatically sets `ai_provider_litellm.settings.host` on each `ddev start`.
+On each `ddev start` the add-on automatically:
+1. Waits for the LiteLLM proxy to be ready
+2. Creates a virtual API key `sk-drupal-dev-key` in the LiteLLM database (safe to run repeatedly — no-op if it already exists)
+3. Sets `ai_provider_litellm.settings.host` to `http://ddev-<project>-litellm:4000` via drush
 
-You still need to configure the API key manually:
+You still need to wire up the API key in Drupal once:
 1. Go to **Configuration → Key** (`/admin/config/system/keys`)
-2. Add a key named `litellm_key` with value `sk-ddev-litellm` (or your custom key)
+2. Add a key named `litellm_key` with value `sk-drupal-dev-key`
 3. Go to **Configuration → AI → Providers** (`/admin/config/ai/providers/litellm`)
-4. Select your key under **API Key**
+4. Select `litellm_key` under **API Key**
 
-### Overriding the Master Key
+### Keys: master vs. virtual
 
-The default key is `sk-ddev-litellm`. To change it, add to `.ddev/config.yaml`:
+| Key | Value | Purpose |
+|---|---|---|
+| Master key | `sk-ddev-litellm` | LiteLLM admin — used to generate virtual keys and call management endpoints |
+| Drupal virtual key | `sk-drupal-dev-key` | Used by Drupal for all AI requests — stored in the PostgreSQL DB so `/key/info` resolves it |
+
+To override the master key, add to `.ddev/config.yaml`:
 
 ```yaml
 web_environment:
   - LITELLM_MASTER_KEY=sk-your-custom-key
 ```
 
-Then update the Drupal Key module entry to match.
+Note: if you change the master key after first start, update the `key/generate` call in `.ddev/config.ddev-litellm.yaml` to match.
 
 ## Troubleshooting
 
-**LiteLLM takes a while to start** — the image is ~2GB and has a 90-second startup window. Check with `ddev litellm logs` if it fails to become healthy.
+**LiteLLM takes a while to start** — the image is ~2GB. PostgreSQL must be healthy first, then LiteLLM runs Prisma migrations before serving requests. The healthcheck allows up to 5 minutes (`30s interval × 10 retries + 120s start_period`). Check progress with `ddev litellm logs`.
 
 **Cannot reach Ollama** — ensure Ollama is running on the host (`ollama serve`) and the model is pulled (`ollama pull llama3.2`).
 
 **Port 4000 or 4001 conflict** — edit `HTTP_EXPOSE` / `HTTPS_EXPOSE` in `.ddev/docker-compose.litellm.yaml`.
 
-**Linux users** — `host.docker.internal` is injected via `extra_hosts: host.docker.internal:host-gateway` in the compose file. This is handled automatically.
+**Linux users** — `host.docker.internal` is injected via `extra_hosts: host.docker.internal:host-gateway`. This is handled automatically; macOS and Windows Docker Desktop provide it natively.
+
+**PostgreSQL data** — key data persists in a Docker named volume (`litellm-postgres-data`). If you need a clean slate: `docker volume rm <project>_litellm-postgres-data` then `ddev restart`.
 
 ## Uninstalling
 
@@ -104,7 +125,7 @@ ddev add-on remove ddev-litellm
 ddev restart
 ```
 
-Note: `.ddev/litellm_config.yaml` is preserved on removal. Delete it manually if no longer needed.
+Note: `.ddev/litellm_config.yaml` is preserved on removal. Delete it manually if no longer needed. The `litellm-postgres-data` Docker volume is also preserved — remove it manually with `docker volume rm <project>_litellm-postgres-data`.
 
 ## License
 
