@@ -1,5 +1,23 @@
 #ddev-generated
 services:
+  litellm-postgres:
+    container_name: ddev-${DDEV_SITENAME}-litellm-postgres
+    image: postgres:16-alpine
+    restart: "no"
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+    environment:
+      - POSTGRES_DB=litellm
+      - POSTGRES_USER=litellm
+      - POSTGRES_PASSWORD=litellm
+    volumes:
+      - litellm-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   litellm:
     container_name: ddev-${DDEV_SITENAME}-litellm
     image: ${LITELLM_DOCKER_IMAGE:-ghcr.io/berriai/litellm:main-latest}
@@ -13,9 +31,13 @@ services:
       - HTTPS_EXPOSE=4001:4000
       - LITELLM_LOG=${LITELLM_LOG:-INFO}
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-ddev-litellm}
+      - DATABASE_URL=postgresql://litellm:litellm@ddev-${DDEV_SITENAME}-litellm-postgres:5432/litellm
       - VLLM_API_BASE=${VLLM_API_BASE:-http://host.docker.internal:8000}
     volumes:
       - "./litellm_config.yaml:/app/config.yaml:ro"
+    depends_on:
+      litellm-postgres:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -24,3 +46,6 @@ services:
       timeout: 10s
       retries: 10
       start_period: 120s
+
+volumes:
+  litellm-postgres-data:

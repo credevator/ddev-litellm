@@ -2,4 +2,6 @@
 # ddev-litellm: auto-configures ai_provider_litellm module on each ddev start
 hooks:
   post-start:
+    - exec: "for i in $(seq 1 24); do curl -sf http://ddev-${DDEV_SITENAME}-litellm:4000/health/liveliness >/dev/null 2>&1 && break || sleep 5; done"
+    - exec: "curl -sf -X POST http://ddev-${DDEV_SITENAME}-litellm:4000/key/generate -H 'Authorization: Bearer sk-ddev-litellm' -H 'Content-Type: application/json' -d '{\"key\": \"sk-drupal-dev-key\", \"key_alias\": \"Drupal CMS Dev Key\", \"duration\": null}' >/dev/null 2>&1 || true"
     - exec: "if drush pm:list --status=enabled --field=name 2>/dev/null | grep -q 'ai_provider_litellm'; then drush config:set ai_provider_litellm.settings host \"http://ddev-${DDEV_SITENAME}-litellm:4000\" -y && echo 'ddev-litellm: Drupal ai_provider_litellm host configured.'; fi"

@@ -52,7 +52,6 @@ health_checks() {
 
   # Verify models endpoint returns valid JSON
   run ddev exec curl -sf \
-    -H "Authorization: Bearer sk-ddev-litellm" \
     "http://ddev-${PROJNAME}-litellm:4000/v1/models"
   assert_success
   assert_output --partial '"object"'
